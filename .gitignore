@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.Python
+*.egg-info/
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Fine-tuned model weights (these are large - don't commit binary model files to git)
+backend/sentiment-model-final/
+training/sentiment-distilbert-finetuned/
+training/sentiment-model-final/
+*.bin
+*.safetensors
+
+# Jupyter/Colab
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables (if you add API keys later)
+.env
