@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentiment Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300..700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #F7F5F1;
+    --paper-raised: #FFFFFF;
+    --ink: #1C1B19;
+    --ink-soft: #5C5953;
+    --line: #DDD8CE;
+
+    --negative: #C4503D;
+    --negative-soft: #F3E2DD;
+    --positive: #2F6B5E;
+    --positive-soft: #DEE9E4;
+    --neutral: #B8924A;
+    --neutral-soft: #F1E7D4;
+
+    --tide: var(--ink-soft);
+    --tide-soft: var(--line);
+
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    transition: background 700ms ease;
+  }
+
+  .wrap {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .eyebrow .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tide);
+    transition: background 700ms ease;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-optical-sizing: auto;
+    font-weight: 480;
+    font-size: clamp(36px, 6vw, 56px);
+    line-height: 1.05;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+  }
+
+  .sub {
+    font-size: 16px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 520px;
+    margin: 0 0 48px;
+  }
+
+  /* ---------- Input area ---------- */
+  .input-card {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 4px;
+    box-shadow: 0 1px 2px rgba(28,27,25,0.04);
+  }
+
+  textarea {
+    width: 100%;
+    min-height: 132px;
+    border: none;
+    background: transparent;
+    resize: vertical;
+    font-family: var(--font-body);
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--ink);
+    padding: 18px 18px 8px;
+    outline: none;
+  }
+
+  textarea::placeholder { color: #A6A096; }
+
+  .input-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px 12px;
+  }
+
+  .char-count {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  button.analyze {
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--paper);
+    background: var(--ink);
+    border: none;
+    border-radius: 9px;
+    padding: 11px 20px;
+    cursor: pointer;
+    transition: transform 150ms ease, background 200ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  button.analyze:hover { transform: translateY(-1px); }
+  button.analyze:active { transform: translateY(0); }
+  button.analyze:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+  .examples {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .example-chip {
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: border-color 150ms ease, color 150ms ease;
+  }
+
+  .example-chip:hover {
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
+
+  /* ---------- Result area ---------- */
+  .result {
+    margin-top: 40px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 450ms ease, transform 450ms ease;
+    pointer-events: none;
+  }
+
+  .result.visible {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+
+  .verdict-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 22px;
+    margin-bottom: 22px;
+  }
+
+  .verdict-label {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(32px, 5vw, 44px);
+    color: var(--tide);
+    transition: color 500ms ease;
+  }
+
+  .verdict-meta {
+    text-align: right;
+  }
+
+  .verdict-meta .confidence {
+    font-family: var(--font-mono);
+    font-size: 22px;
+    color: var(--ink);
+  }
+
+  .verdict-meta .latency {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+
+  /* Gauge */
+  .gauge-track {
+    position: relative;
+    height: 10px;
+    border-radius: 100px;
+    background: linear-gradient(
+      90deg,
+      var(--negative) 0%,
+      var(--neutral) 50%,
+      var(--positive) 100%
+    );
+    margin: 28px 0 8px;
+  }
+
+  .gauge-marker {
+    position: absolute;
+    top: -7px;
+    width: 24px;
+    height: 24px;
+    margin-left: -12px;
+    border-radius: 50%;
+    background: var(--paper-raised);
+    border: 3px solid var(--ink);
+    transition: left 600ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 2px 6px rgba(28,27,25,0.18);
+  }
+
+  .gauge-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  /* Probability breakdown */
+  .probs {
+    margin-top: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .prob-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 56px;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .prob-row .prob-label {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: var(--ink-soft);
+  }
+
+  .prob-row .prob-bar-track {
+    height: 8px;
+    border-radius: 100px;
+    background: var(--line);
+    overflow: hidden;
+  }
+
+  .prob-row .prob-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    width: 0%;
+    transition: width 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .prob-row .prob-value {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    text-align: right;
+    color: var(--ink);
+  }
+
+  /* Footer / model status */
+  .model-status {
+    margin-top: 56px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 100px;
+    border: 1px solid var(--line);
+  }
+
+  .status-pill .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+  .status-pill .dot.ok { background: var(--positive); }
+  .status-pill .dot.down { background: var(--negative); }
+
+  .error-banner {
+    margin-top: 20px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: var(--negative-soft);
+    color: var(--negative);
+    font-size: 14px;
+    display: none;
+  }
+
+  .error-banner.visible { display: block; }
+
+  @media (max-width: 520px) {
+    .wrap { padding: 40px 18px 64px; }
+    .verdict-meta { text-align: left; }
+    .verdict-row { flex-direction: column; align-items: flex-start; gap: 12px; }
+    .prob-row { grid-template-columns: 76px 1fr 48px; }
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *, .gauge-marker, .prob-bar-fill, .result, button.analyze {
+      transition: none !important;
+    }
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <div class="eyebrow"><span class="dot" id="eyebrowDot"></span> Transformer-based sentiment model</div>
+  <h1>What is this&nbsp;text&nbsp;really&nbsp;saying?</h1>
+  <p class="sub">Paste a review, a comment, or a stray thought. A fine-tuned DistilBERT model reads the tone underneath the words and tells you where it lands.</p>
+
+  <div class="input-card">
+    <textarea id="textInput" placeholder="e.g. The food took forever to arrive, but honestly it was worth the wait." maxlength="2000"></textarea>
+    <div class="input-footer">
+      <span class="char-count"><span id="charCount">0</span> / 2000</span>
+      <button class="analyze" id="analyzeBtn">
+        <span id="btnLabel">Read the sentiment</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="examples">
+    <button class="example-chip" data-text="The movie started promising but became disappointing by the end.">a mixed review</button>
+    <button class="example-chip" data-text="Customer support resolved my issue in five minutes. Genuinely impressed.">a happy customer</button>
+    <button class="example-chip" data-text="Package arrived three weeks late and completely damaged.">an angry complaint</button>
+    <button class="example-chip" data-text="It's fine, I guess. Does what it says on the box, nothing more.">an indifferent shrug</button>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="result" id="result">
+    <div class="verdict-row">
+      <div class="verdict-label" id="verdictLabel">—</div>
+      <div class="verdict-meta">
+        <div class="confidence" id="confidenceValue">—</div>
+        <div class="latency" id="latencyValue">—</div>
+      </div>
+    </div>
+
+    <div class="gauge-track">
+      <div class="gauge-marker" id="gaugeMarker" style="left: 50%;"></div>
+    </div>
+    <div class="gauge-labels">
+      <span>Negative</span>
+      <span>Neutral</span>
+      <span>Positive</span>
+    </div>
+
+    <div class="probs" id="probsContainer"></div>
+  </div>
+
+  <div class="model-status">
+    <span id="modelSource">checking model…</span>
+    <span class="status-pill" id="apiStatusPill"><span class="dot down" id="apiStatusDot"></span><span id="apiStatusText">connecting</span></span>
+  </div>
+
+</div>
+
+<script>
+  // ---------------------------------------------------------------------
+  // CONFIG — point this at your running FastAPI backend.
+  // Default assumes you're running `uvicorn app:app --port 8000` locally.
+  // ---------------------------------------------------------------------
+  const API_BASE = "http://localhost:8000";
+
+  const textInput = document.getElementById('textInput');
+  const charCount = document.getElementById('charCount');
+  const analyzeBtn = document.getElementById('analyzeBtn');
+  const btnLabel = document.getElementById('btnLabel');
+  const result = document.getElementById('result');
+  const verdictLabel = document.getElementById('verdictLabel');
+  const confidenceValue = document.getElementById('confidenceValue');
+  const latencyValue = document.getElementById('latencyValue');
+  const gaugeMarker = document.getElementById('gaugeMarker');
+  const probsContainer = document.getElementById('probsContainer');
+  const errorBanner = document.getElementById('errorBanner');
+  const eyebrowDot = document.getElementById('eyebrowDot');
+  const modelSource = document.getElementById('modelSource');
+  const apiStatusDot = document.getElementById('apiStatusDot');
+  const apiStatusText = document.getElementById('apiStatusText');
+
+  const COLORS = {
+    POSITIVE: '#2F6B5E',
+    NEGATIVE: '#C4503D',
+    NEUTRAL: '#B8924A',
+  };
+  const SOFT_COLORS = {
+    POSITIVE: '#DEE9E4',
+    NEGATIVE: '#F3E2DD',
+    NEUTRAL: '#F1E7D4',
+  };
+
+  textInput.addEventListener('input', () => {
+    charCount.textContent = textInput.value.length;
+  });
+
+  document.querySelectorAll('.example-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      textInput.value = chip.dataset.text;
+      charCount.textContent = textInput.value.length;
+      textInput.focus();
+    });
+  });
+
+  function setTide(label) {
+    const color = COLORS[label] || '#5C5953';
+    document.documentElement.style.setProperty('--tide', color);
+    document.documentElement.style.setProperty('--tide-soft', SOFT_COLORS[label] || '#DDD8CE');
+  }
+
+  function showError(msg) {
+    errorBanner.textContent = msg;
+    errorBanner.classList.add('visible');
+  }
+
+  function hideError() {
+    errorBanner.classList.remove('visible');
+  }
+
+  async function checkHealth() {
+    try {
+      const res = await fetch(`${API_BASE}/`);
+      const data = await res.json();
+      apiStatusDot.classList.remove('down');
+      apiStatusDot.classList.add('ok');
+      apiStatusText.textContent = 'API connected';
+      modelSource.textContent = data.model_source === 'custom-fine-tuned'
+        ? 'serving your fine-tuned model'
+        : 'serving pretrained fallback model';
+    } catch (e) {
+      apiStatusDot.classList.remove('ok');
+      apiStatusDot.classList.add('down');
+      apiStatusText.textContent = 'API offline';
+      modelSource.textContent = 'start the backend: uvicorn app:app --port 8000';
+    }
+  }
+
+  async function analyze() {
+    const text = textInput.value.trim();
+    if (!text) {
+      showError('Type or paste something first.');
+      return;
+    }
+    hideError();
+    analyzeBtn.disabled = true;
+    btnLabel.textContent = 'Reading…';
+
+    try {
+      const res = await fetch(`${API_BASE}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      renderResult(data);
+    } catch (err) {
+      showError(`Couldn't reach the model: ${err.message}. Is the FastAPI backend running on ${API_BASE}?`);
+    } finally {
+      analyzeBtn.disabled = false;
+      btnLabel.textContent = 'Read the sentiment';
+    }
+  }
+
+  function renderResult(data) {
+    const label = data.label;
+    const confidence = data.confidence;
+    const probs = data.probabilities;
+
+    setTide(label);
+    eyebrowDot.style.background = COLORS[label] || '#5C5953';
+
+    verdictLabel.textContent = label.charAt(0) + label.slice(1).toLowerCase();
+    confidenceValue.textContent = (confidence * 100).toFixed(1) + '%';
+    latencyValue.textContent = `${data.latency_ms} ms inference`;
+
+    // Gauge position: map POSITIVE confidence to the 0-100 scale.
+    // If label is POSITIVE, marker sits right of center proportional to confidence.
+    // If NEGATIVE, sits left of center.
+    const posProb = probs['POSITIVE'] !== undefined ? probs['POSITIVE'] : (label === 'POSITIVE' ? confidence : 1 - confidence);
+    const gaugePercent = posProb * 100;
+    gaugeMarker.style.left = `${gaugePercent}%`;
+
+    // Probability bars
+    probsContainer.innerHTML = '';
+    Object.entries(probs).forEach(([key, value]) => {
+      const row = document.createElement('div');
+      row.className = 'prob-row';
+      row.innerHTML = `
+        <span class="prob-label">${key}</span>
+        <span class="prob-bar-track"><span class="prob-bar-fill" style="background:${COLORS[key] || '#5C5953'}"></span></span>
+        <span class="prob-value">${(value * 100).toFixed(1)}%</span>
+      `;
+      probsContainer.appendChild(row);
+      requestAnimationFrame(() => {
+        row.querySelector('.prob-bar-fill').style.width = `${value * 100}%`;
+      });
+    });
+
+    result.classList.add('visible');
+  }
+
+  analyzeBtn.addEventListener('click', analyze);
+  textInput.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') analyze();
+  });
+
+  checkHealth();
+</script>
+
+</body>
+</html>
